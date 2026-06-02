@@ -200,7 +200,7 @@
     </div>
 
     <div style="margin-bottom: 25px;" id="exclude-column-toggle-zone">
-        <button id="columnToggleBtn" class="btn-clinical" onclick="toggleClinicalColumn()">🩻 Add Clinical Column</button>
+        <button id="columnToggleBtn" class="btn-clinical" onclick="toggleClinicalColumn()">Add Clinical Column</button>
     </div>
 
     <div id="weeksTablesContainer">
@@ -261,10 +261,10 @@
         const toggleBtn = document.getElementById('columnToggleBtn');
         if(syllabusData.showClinicalColumn) {
             container.style.maxWidth = '1400px';
-            if(toggleBtn) toggleBtn.innerHTML = "🗑 Remove Clinical Column";
+            if(toggleBtn) toggleBtn.innerHTML = "Remove Clinical Column";
         } else {
             container.style.maxWidth = '1200px';
-            if(toggleBtn) toggleBtn.innerHTML = "🩻 Add Clinical Column";
+            if(toggleBtn) toggleBtn.innerHTML = "Add Clinical Column";
         }
     }
 
@@ -290,7 +290,6 @@
             tableElement.className = 'syllabus-table';
             tableElement.id = `table-week-${weekIndex}`;
             
-            // Layout updated to place Clinical on the right side
             let tableHeaderRow = `
                 <tr>
                     <td colspan="${headerSpanCount}" class="week-heading">
@@ -690,7 +689,6 @@
         const hasClinical = syllabusData.showClinicalColumn;
         const colWidthPercent = hasClinical ? "33.33%" : "50%";
 
-        // Fixed color inheritance by using an explicit cell background style query injection rule
         const docHtmlStyles = `
             <style>
                 body { font-family: 'Arial', sans-serif; color: #333333; }
@@ -705,13 +703,11 @@
             </style>
         `;
 
-        // Loop over the clone to fix column layout sizing and explicit background style preservation
         clone.querySelectorAll('.syllabus-table').forEach(table => {
             table.querySelectorAll('th, td').forEach(cell => {
                 cell.style.width = colWidthPercent;
             });
             
-            // Force cell-specific style attributes onto the clinical headers across ALL generated tables
             if (hasClinical) {
                 table.querySelectorAll('.clinical-th-cell').forEach(th => {
                     th.setAttribute('style', `background-color: #008080 !important; color: white !important; font-weight: bold; text-align: left; width: ${colWidthPercent};`);
