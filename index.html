@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nursing Syllabus Template Builder</title>
+    <style>
+        :root {
+            --primary-color: #005A9C; /* Nursing / Clinical Blue */
+            --secondary-color: #f4f7f9;
+            --border-color: #cccccc;
+            --text-color: #333333;
+            --danger-color: #cc0000;
+            --success-color: #28a745;
+            --word-color: #2b579a; /* MS Word Blue */
+            --clinical-color: #008080; /* Teal for Clinical toggle */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+            line-height: 1.6;
+            background-color: #e9eef2;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px; 
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: max-width 0.3s;
+        }
+
+        .toolbar {
+            background-color: var(--secondary-color);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .course-header-zone {
+            margin-bottom: 20px;
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .interactive-field {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .display-mode {
+            font-size: 1.1em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 6px 12px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            font-weight: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-word { background-color: var(--word-color); color: white; }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-clinical { background-color: var(--clinical-color); color: white; }
+
+        button:hover { opacity: 0.9; }
+
+        /* Syllabus Table Matrix */
+        .syllabus-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 40px;
+            table-layout: fixed;
+        }
+
+        .syllabus-table th, .syllabus-table td {
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            vertical-align: top;
+            word-wrap: break-word;
+        }
+
+        .syllabus-table th {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: left;
+        }
+
+        .week-heading {
+            background-color: #dee2e6;
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #495057;
+            padding: 10px 15px !important;
+        }
+
+        .sub-section-title {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-top: 15px;
+            margin-bottom: 5px;
+            border-bottom: 1px dashed var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sub-section-title:first-child { margin-top: 0; }
+
+        .list-container {
+            margin-bottom: 15px;
+            min-height: 30px;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .item-text { flex-grow: 1; }
+
+        .restore-panel {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
+            margin-bottom: 5px;
+        }
+        
+        .restore-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .bottom-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="syllabusContentContainer">
+    <h1>Nursing Course Syllabus Template Builder</h1>
+    
+    <div class="toolbar" id="exclude-toolbar">
+        <button class="btn-word" onclick="exportToWord()">📄 Export to Microsoft Word</button>
+        <small style="color: #666; margin-left: auto;">*Changes auto-save directly to your browser window session memory.</small>
+    </div>
+
+    <div class="course-header-zone">
+        <label style="font-weight: bold; display:block; margin-bottom: 5px;">Course Code & Name:</label>
+        <div id="courseNameContainer">
+            </div>
+    </div>
+
+    <div style="margin-bottom: 25px;" id="exclude-column-toggle-zone">
+        <button id="columnToggleBtn" class="btn-clinical" onclick="toggleClinicalColumn()">🩻 Add Clinical Column</button>
+    </div>
+
+    <div id="weeksTablesContainer">
+        </div>
+
+    <div class="bottom-actions" id="exclude-bottom-actions">
+        <button class="btn-success" style="font-size: 16px; padding: 12px 24px;" onclick="addNewWeekData()">➕ Add New Week Section</button>
+    </div>
+</div>
+
+<script>
+    // State management
+    let syllabusData = {
+        courseName: "NURS XXX: Enter Course Title",
+        showClinicalColumn: false, 
+        weeks: [] 
+    };
+
+    const coreAssignments = ['Discussion', 'Quiz', 'Case Studies', 'Sherpath Assignment', 'HESI Exam'];
+
+    // Blueprint for creating a fresh week block object
+    function createNewWeekObject(labelName) {
+        return {
+            weekTitle: labelName || "Week #",
+            modules: [],
+            readings: [],
+            customCategories: [],
+            clinicalActivities: [], 
+            assignments: [...coreAssignments]
+        };
+    }
+
+    // Initialization
+    window.onload = function() {
+        if(localStorage.getItem('nursingSyllabusData')) {
+            syllabusData = JSON.parse(localStorage.getItem('nursingSyllabusData'));
+            if (syllabusData.showClinicalColumn === undefined) syllabusData.showClinicalColumn = false;
+            
+            syllabusData.weeks.forEach(w => {
+                if(!w.assignments) w.assignments = [...coreAssignments];
+                if(!w.customCategories) w.customCategories = [];
+                if(!w.clinicalActivities) w.clinicalActivities = [];
+            });
+            saveToStorage();
+        } else {
+            syllabusData.weeks.push(createNewWeekObject("Week #"));
+        }
+        updateUiWidth();
+        renderAll();
+    };
+
+    function saveToStorage() {
+        localStorage.setItem('nursingSyllabusData', JSON.stringify(syllabusData));
+    }
+
+    function updateUiWidth() {
+        const container = document.getElementById('syllabusContentContainer');
+        const toggleBtn = document.getElementById('columnToggleBtn');
+        if(syllabusData.showClinicalColumn) {
+            container.style.maxWidth = '1400px';
+            if(toggleBtn) toggleBtn.innerHTML = "🗑 Remove Clinical Column";
+        } else {
+            container.style.maxWidth = '1200px';
+            if(toggleBtn) toggleBtn.innerHTML = "🩻 Add Clinical Column";
+        }
+    }
+
+    function toggleClinicalColumn() {
+        syllabusData.showClinicalColumn = !syllabusData.showClinicalColumn;
+        saveToStorage();
+        updateUiWidth();
+        renderAll();
+    }
+
+    function renderAll() {
+        renderCourseName(false);
+        
+        const container = document.getElementById('weeksTablesContainer');
+        container.innerHTML = '';
+
+        const hasClinical = syllabusData.showClinicalColumn;
+        const colWidthStyle = hasClinical ? "width: 33.33%;" : "width: 50%;";
+        const headerSpanCount = hasClinical ? 3 : 2;
+
+        syllabusData.weeks.forEach((week, weekIndex) => {
+            const tableElement = document.createElement('table');
+            tableElement.className = 'syllabus-table';
+            tableElement.id = `table-week-${weekIndex}`;
+            
+            // Layout updated to place Clinical on the right side
+            let tableHeaderRow = `
+                <tr>
+                    <td colspan="${headerSpanCount}" class="week-heading">
+                        <div id="weekTitleContainer-${weekIndex}"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <th style="background-color: #005A9C; color: white; ${colWidthStyle}">Learning Activities</th>
+                    <th style="background-color: #005A9C; color: white; ${colWidthStyle}">Assignments</th>
+                    ${hasClinical ? `<th class="clinical-th-cell" style="background-color: #008080; color: white; ${colWidthStyle}">Clinical/Lab Activities</th>` : ''}
+                </tr>
+            `;
+
+            let tableBodyRow = `
+                <tr>
+                    <td style="${colWidthStyle}">
+                        <div class="sub-section-title"><span>Learning Module(s)</span></div>
+                        <div id="modulesList-${weekIndex}" class="list-container"></div>
+                        <div class="interactive-field" data-html-clean="remove">
+                            <input type="text" id="newModuleInput-${weekIndex}" placeholder="Add a Learning Module...">
+                            <button class="btn-primary" onclick="addItem(${weekIndex}, 'modulesList', 'newModuleInput-${weekIndex}')">+ Add</button>
+                        </div>
+
+                        <div class="sub-section-title" style="margin-top: 30px;"><span>Readings</span></div>
+                        <div id="readingsList-${weekIndex}" class="list-container"></div>
+                        <div class="interactive-field" data-html-clean="remove">
+                            <input type="text" id="newReadingInput-${weekIndex}" placeholder="Add Textbook Chapters / Articles...">
+                            <button class="btn-primary" onclick="addItem(${weekIndex}, 'readingsList', 'newReadingInput-${weekIndex}')">+ Add</button>
+                        </div>
+
+                        <div id="customCategoriesArea-${weekIndex}"></div>
+
+                        <div class="interactive-field" data-html-clean="remove" style="margin-top: 35px; border-top: 1px solid #ddd; padding-top: 15px;">
+                            <input type="text" id="newCategoryTitleInput-${weekIndex}" placeholder="Create custom heading (e.g., Skills Lab)...">
+                            <button class="btn-success" onclick="addCustomCategory(${weekIndex})">➕ Add Custom Category</button>
+                        </div>
+                    </td>
+
+                    <td style="${colWidthStyle}">
+                        <div id="assignmentsList-${weekIndex}" class="list-container" style="margin-top: 10px;"></div>
+                        <div class="interactive-field" data-html-clean="remove">
+                            <input type="text" id="newAssignmentInput-${weekIndex}" placeholder="Add an Assignment...">
+                            <button class="btn-primary" onclick="addItem(${weekIndex}, 'assignmentsList', 'newAssignmentInput-${weekIndex}')">+ Add</button>
+                        </div>
+
+                        <div id="restorePanel-${weekIndex}" class="restore-panel" data-html-clean="remove" style="display: none;">
+                            <span style="font-size: 11px; font-weight: bold; color: #856404;">Add Back Standard Item:</span>
+                            <div id="restoreButtonsContainer-${weekIndex}" class="restore-buttons"></div>
+                        </div>
+                    </td>
+
+                    ${hasClinical ? `
+                    <td style="${colWidthStyle}">
+                        <div id="clinicalActivitiesList-${weekIndex}" class="list-container" style="margin-top: 10px;"></div>
+                        <div class="interactive-field" data-html-clean="remove">
+                            <input type="text" id="newClinicalInput-${weekIndex}" placeholder="Add a Clinical/Lab Entry...">
+                            <button class="btn-primary" style="background-color: var(--clinical-color);" onclick="addItem(${weekIndex}, 'clinicalActivitiesList', 'newClinicalInput-${weekIndex}')">+ Add</button>
+                        </div>
+                    </td>
+                    ` : ''}
+                </tr>
+                <tr data-html-clean="remove">
+                    <td colspan="${headerSpanCount}" style="background: #fafafa; text-align: right; padding: 8px 15px;">
+                        <button class="btn-danger" style="padding: 4px 10px; font-size: 11px;" onclick="deleteWeekSection(${weekIndex})">🗑 Delete Entire Week Section</button>
+                    </td>
+                </tr>
+            `;
+
+            tableElement.innerHTML = `<thead>${tableHeaderRow}</thead><tbody>${tableBodyRow}</tbody>`;
+            container.appendChild(tableElement);
+
+            renderWeekTitle(weekIndex, false);
+            renderDynamicList(weekIndex, 'modulesList', week.modules);
+            renderDynamicList(weekIndex, 'readingsList', week.readings);
+            renderDynamicList(weekIndex, 'assignmentsList', week.assignments);
+            renderCustomCategories(weekIndex);
+            renderRestorePanel(weekIndex);
+
+            if(hasClinical) {
+                renderDynamicList(weekIndex, 'clinicalActivitiesList', week.clinicalActivities);
+            }
+        });
+    }
+
+    function renderRestorePanel(weekIndex) {
+        const panel = document.getElementById(`restorePanel-${weekIndex}`);
+        const container = document.getElementById(`restoreButtonsContainer-${weekIndex}`);
+        const currentAssignments = syllabusData.weeks[weekIndex].assignments;
+        
+        container.innerHTML = '';
+        let missingCoreItems = coreAssignments.filter(item => !currentAssignments.includes(item));
+
+        if (missingCoreItems.length > 0) {
+            panel.style.display = 'block';
+            missingCoreItems.forEach(itemName => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-success';
+                btn.style.padding = '2px 8px';
+                btn.style.fontSize = '11px';
+                btn.innerText = `+ ${itemName}`;
+                btn.onclick = function() {
+                    syllabusData.weeks[weekIndex].assignments.push(itemName);
+                    saveToStorage();
+                    renderAll();
+                };
+                container.appendChild(btn);
+            });
+        } else {
+            panel.style.display = 'none';
+        }
+    }
+
+    // Dynamic Category Handling Logic
+    function addCustomCategory(weekIndex) {
+        const input = document.getElementById(`newCategoryTitleInput-${weekIndex}`);
+        const title = input.value.trim();
+        if(!title) return;
+
+        syllabusData.weeks[weekIndex].customCategories.push({
+            name: title,
+            items: []
+        });
+
+        input.value = '';
+        saveToStorage();
+        renderAll();
+    }
+
+    function deleteCustomCategory(weekIndex, catIndex) {
+        if(confirm("Delete this category heading and all items under it?")) {
+            syllabusData.weeks[weekIndex].customCategories.splice(catIndex, 1);
+            saveToStorage();
+            renderAll();
+        }
+    }
+
+    function renderCustomCategories(weekIndex) {
+        const targetArea = document.getElementById(`customCategoriesArea-${weekIndex}`);
+        targetArea.innerHTML = '';
+        const week = syllabusData.weeks[weekIndex];
+
+        week.customCategories.forEach((cat, catIndex) => {
+            const catWrapper = document.createElement('div');
+            catWrapper.style.marginTop = '30px';
+            
+            catWrapper.innerHTML = `
+                <div class="sub-section-title">
+                    <span>${escapeHtml(cat.name)}</span>
+                    <button class="btn-danger" data-html-clean="remove" style="padding: 2px 6px; font-size: 10px; font-weight: normal;" onclick="deleteCustomCategory(${weekIndex}, ${catIndex})">Delete Category</button>
+                </div>
+                <div id="customCatList-${weekIndex}-${catIndex}" class="list-container"></div>
+                <div class="interactive-field" data-html-clean="remove">
+                    <input type="text" id="newCustomCatItemInput-${weekIndex}-${catIndex}" placeholder="Add entry under ${escapeHtml(cat.name)}...">
+                    <button class="btn-primary" onclick="addCustomCategoryItem(${weekIndex}, ${catIndex})">+ Add</button>
+                </div>
+            `;
+            targetArea.appendChild(catWrapper);
+            renderCustomCategoryItemsList(weekIndex, catIndex);
+        });
+    }
+
+    function renderCustomCategoryItemsList(weekIndex, catIndex) {
+        const container = document.getElementById(`customCatList-${weekIndex}-${catIndex}`);
+        container.innerHTML = '';
+        const arrayData = syllabusData.weeks[weekIndex].customCategories[catIndex].items;
+
+        arrayData.forEach((item, index) => {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.id = `customCat-row-${weekIndex}-${catIndex}-${index}`;
+            row.innerHTML = `
+                <span class="item-text">${escapeHtml(item)}</span>
+                <div data-html-clean="remove">
+                    <button class="btn-secondary" style="padding:2px 6px; font-size:12px;" onclick="editCustomCategoryItem(${weekIndex}, ${catIndex}, ${index})">Edit</button>
+                    <button class="btn-danger" style="padding:2px 6px; font-size:12px;" onclick="deleteCustomCategoryItem(${weekIndex}, ${catIndex}, ${index})">Delete</button>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function addCustomCategoryItem(weekIndex, catIndex) {
+        const input = document.getElementById(`newCustomCatItemInput-${weekIndex}-${catIndex}`);
+        const value = input.value.trim();
+        if(!value) return;
+
+        syllabusData.weeks[weekIndex].customCategories[catIndex].items.push(value);
+        input.value = '';
+        saveToStorage();
+        renderAll();
+    }
+
+    function editCustomCategoryItem(weekIndex, catIndex, index) {
+        const row = document.getElementById(`customCat-row-${weekIndex}-${catIndex}-${index}`);
+        const currentVal = syllabusData.weeks[weekIndex].customCategories[catIndex].items[index];
+
+        row.innerHTML = `
+            <input type="text" id="customCat-edit-input-${weekIndex}-${catIndex}-${index}" value="${escapeHtml(currentVal)}" style="margin-right:8px;">
+            <div>
+                <button class="btn-success" style="padding:2px 6px; font-size:12px;" onclick="saveCustomCategoryItem(${weekIndex}, ${catIndex}, ${index})">Save</button>
+                <button class="btn-secondary" style="padding:2px 6px; font-size:12px;" onclick="renderAll()">Cancel</button>
+            </div>
+        `;
+    }
+
+    function saveCustomCategoryItem(weekIndex, catIndex, index) {
+        const newVal = document.getElementById(`customCat-edit-input-${weekIndex}-${catIndex}-${index}`).value.trim();
+        if(!newVal) return;
+
+        syllabusData.weeks[weekIndex].customCategories[catIndex].items[index] = newVal;
+        saveToStorage();
+        renderAll();
+    }
+
+    function deleteCustomCategoryItem(weekIndex, catIndex, index) {
+        syllabusData.weeks[weekIndex].customCategories[catIndex].items.splice(index, 1);
+        saveToStorage();
+        renderAll();
+    }
+
+    function addNewWeekData() {
+        syllabusData.weeks.push(createNewWeekObject("Week #"));
+        saveToStorage();
+        renderAll();
+    }
+
+    function deleteWeekSection(weekIndex) {
+        if(confirm("Are you sure you want to completely delete this entire week section?")) {
+            syllabusData.weeks.splice(weekIndex, 1);
+            saveToStorage();
+            renderAll();
+        }
+    }
+
+    function renderCourseName(isEditing) {
+        const container = document.getElementById('courseNameContainer');
+        if (isEditing) {
+            container.innerHTML = `
+                <div class="interactive-field">
+                    <input type="text" id="courseNameInput" value="${escapeHtml(syllabusData.courseName)}">
+                    <button class="btn-success" onclick="saveCourseName()">Save</button>
+                    <button class="btn-secondary" onclick="renderCourseName(false)">Cancel</button>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="display-mode">
+                    <span>${syllabusData.courseName || '<em>No course name specified</em>'}</span>
+                    <button class="btn-secondary" data-html-clean="remove" style="padding: 2px 8px; font-size:12px;" onclick="renderCourseName(true)">Edit</button>
+                    <button class="btn-danger" data-html-clean="remove" style="padding: 2px 8px; font-size:12px;" onclick="deleteCourseName()">Delete</button>
+                </div>
+            `;
+        }
+    }
+
+    function saveCourseName() {
+        const val = document.getElementById('courseNameInput').value;
+        syllabusData.courseName = val.trim() || "Untitled Nursing Course";
+        saveToStorage();
+        renderCourseName(false);
+    }
+
+    function deleteCourseName() {
+        syllabusData.courseName = "";
+        saveToStorage();
+        renderCourseName(false);
+    }
+
+    function renderWeekTitle(weekIndex, isEditing) {
+        const container = document.getElementById(`weekTitleContainer-${weekIndex}`);
+        const currentTitle = syllabusData.weeks[weekIndex].weekTitle;
+        
+        if (isEditing) {
+            container.innerHTML = `
+                <div class="interactive-field" style="margin-bottom:0;">
+                    <input type="text" id="weekTitleInput-${weekIndex}" value="${escapeHtml(currentTitle)}" style="padding: 4px 8px;">
+                    <button class="btn-success" style="padding: 4px 10px; font-size:12px;" onclick="saveWeekTitle(${weekIndex})">Save</button>
+                    <button class="btn-secondary" style="padding: 4px 10px; font-size:12px;" onclick="renderWeekTitle(${weekIndex}, false)">Cancel</button>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div style="display:flex; justify-content: space-between; align-items:center; width:100%;">
+                    <span style="font-size: 1.2em; font-weight: bold;">${escapeHtml(currentTitle)}</span>
+                    <div data-html-clean="remove">
+                        <button class="btn-secondary" style="padding: 2px 8px; font-size:11px; color:#333; background:#fff; border:1px solid #ccc;" onclick="renderWeekTitle(${weekIndex}, true)">Edit</button>
+                        <button class="btn-danger" style="padding: 2px 8px; font-size:11px;" onclick="deleteWeekTitle(${weekIndex})">Delete</button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function saveWeekTitle(weekIndex) {
+        const val = document.getElementById(`weekTitleInput-${weekIndex}`).value;
+        syllabusData.weeks[weekIndex].weekTitle = val.trim() || "Week #";
+        saveToStorage();
+        renderWeekTitle(weekIndex, false);
+    }
+
+    function deleteWeekTitle(weekIndex) {
+        syllabusData.weeks[weekIndex].weekTitle = "";
+        saveToStorage();
+        renderWeekTitle(weekIndex, false);
+    }
+
+    function renderDynamicList(weekIndex, containerType, arrayData) {
+        const container = document.getElementById(`${containerType}-${weekIndex}`);
+        container.innerHTML = '';
+        
+        arrayData.forEach((item, index) => {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.id = `${containerType}-${weekIndex}-row-${index}`;
+            row.innerHTML = `
+                <span class="item-text">${escapeHtml(item)}</span>
+                <div data-html-clean="remove">
+                    <button class="btn-secondary" style="padding:2px 6px; font-size:12px;" onclick="editListItem(${weekIndex}, '${containerType}', ${index})">Edit</button>
+                    <button class="btn-danger" style="padding:2px 6px; font-size:12px;" onclick="deleteListItem(${weekIndex}, '${containerType}', ${index})">Delete</button>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    function addItem(weekIndex, containerType, inputId) {
+        const input = document.getElementById(inputId);
+        const value = input.value.trim();
+        if(!value) return;
+
+        const week = syllabusData.weeks[weekIndex];
+        if(containerType === 'modulesList') week.modules.push(value);
+        if(containerType === 'readingsList') week.readings.push(value);
+        if(containerType === 'assignmentsList') week.assignments.push(value);
+        if(containerType === 'clinicalActivitiesList') week.clinicalActivities.push(value);
+
+        input.value = '';
+        saveToStorage();
+        renderAll();
+    }
+
+    function editListItem(weekIndex, containerType, index) {
+        const row = document.getElementById(`${containerType}-${weekIndex}-row-${index}`);
+        const week = syllabusData.weeks[weekIndex];
+        let currentVal = "";
+        
+        if(containerType === 'modulesList') currentVal = week.modules[index];
+        if(containerType === 'readingsList') currentVal = week.readings[index];
+        if(containerType === 'assignmentsList') currentVal = week.assignments[index];
+        if(containerType === 'clinicalActivitiesList') currentVal = week.clinicalActivities[index];
+
+        row.innerHTML = `
+            <input type="text" id="${containerType}-${weekIndex}-edit-input-${index}" value="${escapeHtml(currentVal)}" style="margin-right:8px;">
+            <div>
+                <button class="btn-success" style="padding:2px 6px; font-size:12px;" onclick="saveListItem(${weekIndex}, '${containerType}', ${index})">Save</button>
+                <button class="btn-secondary" style="padding:2px 6px; font-size:12px;" onclick="renderAll()">Cancel</button>
+            </div>
+        `;
+    }
+
+    function saveListItem(weekIndex, containerType, index) {
+        const newVal = document.getElementById(`${containerType}-${weekIndex}-edit-input-${index}`).value.trim();
+        if(!newVal) return;
+
+        const week = syllabusData.weeks[weekIndex];
+        if(containerType === 'modulesList') week.modules[index] = newVal;
+        if(containerType === 'readingsList') week.readings[index] = newVal;
+        if(containerType === 'assignmentsList') week.assignments[index] = newVal;
+        if(containerType === 'clinicalActivitiesList') week.clinicalActivities[index] = newVal;
+
+        saveToStorage();
+        renderAll();
+    }
+
+    function deleteListItem(weekIndex, containerType, index) {
+        const week = syllabusData.weeks[weekIndex];
+        if(containerType === 'modulesList') week.modules.splice(index, 1);
+        if(containerType === 'readingsList') week.readings.splice(index, 1);
+        if(containerType === 'assignmentsList') week.assignments.splice(index, 1);
+        if(containerType === 'clinicalActivitiesList') week.clinicalActivities.splice(index, 1);
+
+        saveToStorage();
+        renderAll();
+    }
+
+    // WORD DOCUMENT EXPORT COMPILER
+    function exportToWord() {
+        renderAll();
+
+        const clone = document.getElementById('syllabusContentContainer').cloneNode(true);
+
+        clone.querySelector('#exclude-toolbar').remove();
+        clone.querySelector('#exclude-column-toggle-zone').remove();
+        clone.querySelector('#exclude-bottom-actions').remove();
+        clone.querySelectorAll('[data-html-clean="remove"]').forEach(el => el.remove());
+
+        const hasClinical = syllabusData.showClinicalColumn;
+        const colWidthPercent = hasClinical ? "33.33%" : "50%";
+
+        // Fixed color inheritance by using an explicit cell background style query injection rule
+        const docHtmlStyles = `
+            <style>
+                body { font-family: 'Arial', sans-serif; color: #333333; }
+                h1 { color: #005A9C; border-bottom: 2px solid #005A9C; padding-bottom: 5px; }
+                .course-header-zone { margin-bottom: 20px; background: #fafafa; padding: 12px; border-left: 5px solid #005A9C; font-size: 14pt; font-weight: bold; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: fixed; }
+                th, td { border: 1px solid #cccccc; padding: 10px; vertical-align: top; width: ${colWidthPercent}; word-wrap: break-word; }
+                th { background-color: #005A9C !important; color: white !important; font-weight: bold; text-align: left; }
+                .week-heading { background-color: #dee2e6 !important; font-weight: bold; font-size: 13pt; color: #495057; }
+                .sub-section-title { font-weight: bold; color: #005A9C; margin-top: 12px; margin-bottom: 4px; border-bottom: 1px dashed #cccccc; }
+                .item-row { padding: 4px 0; border-bottom: 1px solid #f0f0f0; display: block; }
+            </style>
+        `;
+
+        // Loop over the clone to fix column layout sizing and explicit background style preservation
+        clone.querySelectorAll('.syllabus-table').forEach(table => {
+            table.querySelectorAll('th, td').forEach(cell => {
+                cell.style.width = colWidthPercent;
+            });
+            
+            // Force cell-specific style attributes onto the clinical headers across ALL generated tables
+            if (hasClinical) {
+                table.querySelectorAll('.clinical-th-cell').forEach(th => {
+                    th.setAttribute('style', `background-color: #008080 !important; color: white !important; font-weight: bold; text-align: left; width: ${colWidthPercent};`);
+                });
+            }
+        });
+
+        const completeDocHtml = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <title>Syllabus Export</title>
+                ${docHtmlStyles}
+            </head>
+            <body>
+                ${clone.innerHTML}
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob(['\ufeff' + completeDocHtml], {
+            type: 'application/msword'
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const cleanTitle = syllabusData.courseName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        
+        link.href = url;
+        link.download = `syllabus_${cleanTitle || 'course'}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+</script>
+
+</body>
+</html>
