@@ -447,7 +447,7 @@
                 </tr>
                 <tr>
                     <td style="${colWidthStyle}">
-                        <div class="sub-section-title"><span>Learning Module(s)</span></div>
+                        <div class="sub-section-title"><span>Interactive Lessons</span></div>
                         <div id="modulesList-${weekIndex}" class="list-container"></div>
                         <div class="interactive-field" data-html-clean="remove">
                             <input type="text" id="newModuleInput-${weekIndex}" placeholder="Add a Learning Module...">
@@ -1077,7 +1077,7 @@
             // --- Row 4: Content ---
 
             // Learning Activities cell
-            const actParas = [sectionHeading("Learning Module(s)", BLUE)];
+            const actParas = [sectionHeading("Interactive Lessons", BLUE)];
             if (week.modules.length === 0) {
                 actParas.push(bodyPara(""));
             } else {
