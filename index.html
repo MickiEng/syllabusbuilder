@@ -758,6 +758,27 @@
         renderWeekTitle(weekIndex, false);
     }
 
+    // Returns true if this specific objective is mapped to anything
+    function isObjectiveMapped(weekIndex, objIndex) {
+        const week = syllabusData.weeks[weekIndex];
+        const tag = objTag(weekIndex, objIndex);
+        const mappingKeys = Object.keys(week).filter(k => k.endsWith('_mappings'));
+        return mappingKeys.some(mk => {
+            const store = week[mk];
+            return Object.values(store).some(arr => Array.isArray(arr) && arr.includes(tag));
+        });
+    }
+
+    // Returns true if ANY objective in this week is mapped to anything
+    function isAnyObjectiveMappedInWeek(weekIndex) {
+        const week = syllabusData.weeks[weekIndex];
+        const mappingKeys = Object.keys(week).filter(k => k.endsWith('_mappings'));
+        return mappingKeys.some(mk => {
+            const store = week[mk];
+            return Object.values(store).some(arr => Array.isArray(arr) && arr.length > 0);
+        });
+    }
+
     function renderDynamicList(weekIndex, containerType, arrayData) {
         const container = document.getElementById(`${containerType}-${weekIndex}`);
         container.innerHTML = '';
@@ -771,12 +792,21 @@
             if (isObjectives) {
                 // Show X-N tag + text; no Map button for objectives themselves
                 const tag = objTag(weekIndex, index);
+                const thisMapped = isObjectiveMapped(weekIndex, index);
+                const anyMapped = isAnyObjectiveMappedInWeek(weekIndex);
+                const editLocked = thisMapped;
+                const deleteLocked = anyMapped;
+                const editStyle = editLocked ? 'opacity:0.4; cursor:not-allowed;' : '';
+                const deleteStyle = deleteLocked ? 'opacity:0.4; cursor:not-allowed;' : '';
+                const editTitle = editLocked ? 'title="Unmap this objective before editing"' : '';
+                const deleteTitle = deleteLocked ? 'title="Unmap all objectives in this week before deleting"' : '';
+                const lockIcon = thisMapped ? ' <span data-html-clean="remove">🔒</span>' : '';
                 row.innerHTML = `
                     <span class="wo-tag">${tag}</span>
-                    <span class="item-text">${escapeHtml(item)}</span>
+                    <span class="item-text">${escapeHtml(item)}${lockIcon}</span>
                     <div data-html-clean="remove">
-                        <button class="btn-secondary" style="padding:2px 6px; font-size:12px;" onclick="editListItem(${weekIndex}, '${containerType}', ${index})">Edit</button>
-                        <button class="btn-danger" style="padding:2px 6px; font-size:12px;" onclick="deleteListItem(${weekIndex}, '${containerType}', ${index})">Delete</button>
+                        <button class="btn-secondary" style="padding:2px 6px; font-size:12px; ${editStyle}" ${editLocked ? 'disabled' : ''} ${editTitle} onclick="${editLocked ? '' : `editListItem(${weekIndex}, '${containerType}', ${index})`}">Edit</button>
+                        <button class="btn-danger" style="padding:2px 6px; font-size:12px; ${deleteStyle}" ${deleteLocked ? 'disabled' : ''} ${deleteTitle} onclick="${deleteLocked ? '' : `deleteListItem(${weekIndex}, '${containerType}', ${index})`}">Delete</button>
                     </div>
                 `;
             } else {
@@ -860,26 +890,6 @@
         const week = syllabusData.weeks[weekIndex];
         if(containerType === 'objectivesList') {
             week.objectives.splice(index, 1);
-            // Re-index all mappings in this week: remove deleted tag, shift higher ones down
-            const wNum = weekNum(weekIndex);
-            const deletedTag = `${wNum}-${index + 1}`;
-            const mappingKeys = Object.keys(week).filter(k => k.endsWith('_mappings'));
-            mappingKeys.forEach(mk => {
-                const store = week[mk];
-                Object.keys(store).forEach(itemIdx => {
-                    store[itemIdx] = store[itemIdx]
-                        .filter(tag => tag !== deletedTag)
-                        .map(tag => {
-                            // e.g. "2-3" → split on "-"
-                            const parts = tag.split('-');
-                            if (parts.length === 2 && parseInt(parts[0]) === wNum) {
-                                const n = parseInt(parts[1]);
-                                if (n > index + 1) return `${wNum}-${n - 1}`;
-                            }
-                            return tag;
-                        });
-                });
-            });
         } else if(containerType === 'modulesList') week.modules.splice(index, 1);
         else if(containerType === 'readingsList') week.readings.splice(index, 1);
         else if(containerType === 'assignmentsList') week.assignments.splice(index, 1);
