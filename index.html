@@ -225,6 +225,7 @@
     function createNewWeekObject(labelName) {
         return {
             weekTitle: labelName || "Week #",
+            objectives: [],
             modules: [],
             readings: [],
             customCategories: [],
@@ -240,6 +241,7 @@
             if (syllabusData.showClinicalColumn === undefined) syllabusData.showClinicalColumn = false;
             
             syllabusData.weeks.forEach(w => {
+                if(!w.objectives) w.objectives = [];
                 if(!w.assignments) w.assignments = [...coreAssignments];
                 if(!w.customCategories) w.customCategories = [];
                 if(!w.clinicalActivities) w.clinicalActivities = [];
@@ -306,7 +308,14 @@
             let tableBodyRow = `
                 <tr>
                     <td style="${colWidthStyle}">
-                        <div class="sub-section-title"><span>Learning Module(s)</span></div>
+                        <div class="sub-section-title"><span>This Week's Objectives</span></div>
+                        <div id="objectivesList-${weekIndex}" class="list-container"></div>
+                        <div class="interactive-field" data-html-clean="remove">
+                            <input type="text" id="newObjectiveInput-${weekIndex}" placeholder="Add an Objective...">
+                            <button class="btn-primary" onclick="addItem(${weekIndex}, 'objectivesList', 'newObjectiveInput-${weekIndex}')">+ Add</button>
+                        </div>
+
+                        <div class="sub-section-title" style="margin-top: 30px;"><span>Learning Module(s)</span></div>
                         <div id="modulesList-${weekIndex}" class="list-container"></div>
                         <div class="interactive-field" data-html-clean="remove">
                             <input type="text" id="newModuleInput-${weekIndex}" placeholder="Add a Learning Module...">
@@ -362,6 +371,7 @@
             container.appendChild(tableElement);
 
             renderWeekTitle(weekIndex, false);
+            renderDynamicList(weekIndex, 'objectivesList', week.objectives);
             renderDynamicList(weekIndex, 'modulesList', week.modules);
             renderDynamicList(weekIndex, 'readingsList', week.readings);
             renderDynamicList(weekIndex, 'assignmentsList', week.assignments);
@@ -621,6 +631,7 @@
         if(!value) return;
 
         const week = syllabusData.weeks[weekIndex];
+        if(containerType === 'objectivesList') week.objectives.push(value);
         if(containerType === 'modulesList') week.modules.push(value);
         if(containerType === 'readingsList') week.readings.push(value);
         if(containerType === 'assignmentsList') week.assignments.push(value);
@@ -636,6 +647,7 @@
         const week = syllabusData.weeks[weekIndex];
         let currentVal = "";
         
+        if(containerType === 'objectivesList') currentVal = week.objectives[index];
         if(containerType === 'modulesList') currentVal = week.modules[index];
         if(containerType === 'readingsList') currentVal = week.readings[index];
         if(containerType === 'assignmentsList') currentVal = week.assignments[index];
@@ -655,6 +667,7 @@
         if(!newVal) return;
 
         const week = syllabusData.weeks[weekIndex];
+        if(containerType === 'objectivesList') week.objectives[index] = newVal;
         if(containerType === 'modulesList') week.modules[index] = newVal;
         if(containerType === 'readingsList') week.readings[index] = newVal;
         if(containerType === 'assignmentsList') week.assignments[index] = newVal;
@@ -666,6 +679,7 @@
 
     function deleteListItem(weekIndex, containerType, index) {
         const week = syllabusData.weeks[weekIndex];
+        if(containerType === 'objectivesList') week.objectives.splice(index, 1);
         if(containerType === 'modulesList') week.modules.splice(index, 1);
         if(containerType === 'readingsList') week.readings.splice(index, 1);
         if(containerType === 'assignmentsList') week.assignments.splice(index, 1);
