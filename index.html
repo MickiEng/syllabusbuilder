@@ -283,6 +283,7 @@
             gap: 8px;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 </head>
 <body>
 
@@ -421,10 +422,22 @@
             tableElement.className = 'syllabus-table';
             tableElement.id = `table-week-${weekIndex}`;
             
-            let tableHeaderRow = `
+            let tableHeaderRow = ``;
+
+            let tableBodyRow = `
                 <tr>
                     <td colspan="${headerSpanCount}" class="week-heading">
                         <div id="weekTitleContainer-${weekIndex}"></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="${headerSpanCount}" style="padding: 12px 15px; background-color: #ffffff;">
+                        <div class="sub-section-title"><span>Week ${wNum} Objectives</span></div>
+                        <div id="objectivesList-${weekIndex}" class="list-container"></div>
+                        <div class="interactive-field" data-html-clean="remove">
+                            <input type="text" id="newObjectiveInput-${weekIndex}" placeholder="Add an Objective...">
+                            <button class="btn-primary" onclick="addItem(${weekIndex}, 'objectivesList', 'newObjectiveInput-${weekIndex}')">+ Add</button>
+                        </div>
                     </td>
                 </tr>
                 <tr>
@@ -432,19 +445,9 @@
                     <th style="background-color: #005A9C; color: white; ${colWidthStyle}">Assignments</th>
                     ${hasClinical ? `<th class="clinical-th-cell" style="background-color: #008080; color: white; ${colWidthStyle}">Clinical/Lab Activities</th>` : ''}
                 </tr>
-            `;
-
-            let tableBodyRow = `
                 <tr>
                     <td style="${colWidthStyle}">
-                        <div class="sub-section-title"><span>Week ${wNum} Objectives</span></div>
-                        <div id="objectivesList-${weekIndex}" class="list-container"></div>
-                        <div class="interactive-field" data-html-clean="remove">
-                            <input type="text" id="newObjectiveInput-${weekIndex}" placeholder="Add an Objective...">
-                            <button class="btn-primary" onclick="addItem(${weekIndex}, 'objectivesList', 'newObjectiveInput-${weekIndex}')">+ Add</button>
-                        </div>
-
-                        <div class="sub-section-title" style="margin-top: 30px;"><span>Learning Module(s)</span></div>
+                        <div class="sub-section-title"><span>Learning Module(s)</span></div>
                         <div id="modulesList-${weekIndex}" class="list-container"></div>
                         <div class="interactive-field" data-html-clean="remove">
                             <input type="text" id="newModuleInput-${weekIndex}" placeholder="Add a Learning Module...">
@@ -496,7 +499,7 @@
                 </tr>
             `;
 
-            tableElement.innerHTML = `<thead>${tableHeaderRow}</thead><tbody>${tableBodyRow}</tbody>`;
+            tableElement.innerHTML = `<tbody>${tableBodyRow}</tbody>`;
             container.appendChild(tableElement);
 
             renderWeekTitle(weekIndex, false);
@@ -913,74 +916,279 @@
         renderAll();
     }
 
-    // WORD DOCUMENT EXPORT COMPILER
-    function exportToWord() {
-        renderAll();
-
-        const clone = document.getElementById('syllabusContentContainer').cloneNode(true);
-
-        clone.querySelector('#exclude-toolbar').remove();
-        clone.querySelector('#exclude-column-toggle-zone').remove();
-        clone.querySelector('#exclude-bottom-actions').remove();
-        clone.querySelectorAll('[data-html-clean="remove"]').forEach(el => el.remove());
+    // WORD DOCUMENT EXPORT — builds a real .docx using docx.js
+    async function exportToWord() {
+        if (typeof docx === 'undefined') {
+            alert("Export library failed to load. Please check your internet connection and reload the page.");
+            return;
+        }
+        const {
+            Document, Packer, Paragraph, Table, TableRow, TableCell,
+            TextRun, WidthType, BorderStyle, ShadingType, AlignmentType,
+            HeadingLevel, VerticalAlign, convertInchesToTwip
+        } = docx;
 
         const hasClinical = syllabusData.showClinicalColumn;
-        const colWidthPercent = hasClinical ? "33.33%" : "50%";
+        const colCount = hasClinical ? 3 : 2;
 
-        const docHtmlStyles = `
-            <style>
-                body { font-family: 'Arial', sans-serif; color: #333333; }
-                h1 { color: #005A9C; border-bottom: 2px solid #005A9C; padding-bottom: 5px; }
-                .course-header-zone { margin-bottom: 20px; background: #fafafa; padding: 12px; border-left: 5px solid #005A9C; font-size: 14pt; font-weight: bold; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: fixed; }
-                th, td { border: 1px solid #cccccc; padding: 10px; vertical-align: top; width: ${colWidthPercent}; word-wrap: break-word; }
-                th { background-color: #005A9C !important; color: white !important; font-weight: bold; text-align: left; }
-                .week-heading { background-color: #dee2e6 !important; font-weight: bold; font-size: 13pt; color: #495057; }
-                .sub-section-title { font-weight: bold; color: #005A9C; margin-top: 12px; margin-bottom: 4px; border-bottom: 1px dashed #cccccc; }
-                .item-row { padding: 4px 0; border-bottom: 1px solid #f0f0f0; display: block; }
-            </style>
-        `;
+        // Twip measurements (1 inch = 1440 twips). Letter page 8.5" minus 0.75" left/right margins = 7" = 10080 twips
+        const totalWidth = 10080;
+        const colWidth = Math.floor(totalWidth / colCount);
 
-        clone.querySelectorAll('.syllabus-table').forEach(table => {
-            table.querySelectorAll('th, td').forEach(cell => {
-                cell.style.width = colWidthPercent;
+        // Color constants
+        const BLUE = "005A9C";
+        const TEAL = "008080";
+        const GRAY_BG = "DEE2E6";
+        const WHITE = "FFFFFF";
+        const LIGHT_BLUE = "EBF2FA";
+
+        // Helper: empty border (invisible)
+        const noBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+
+        // Helper: standard cell border
+        const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: "CCCCCC" };
+
+        // Helper: build a shaded full-width merged cell (week heading or objectives)
+        function fullWidthCell(children, bgColor = WHITE) {
+            return new TableCell({
+                columnSpan: colCount,
+                width: { size: totalWidth, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: bgColor },
+                borders: {
+                    top: cellBorder, bottom: cellBorder,
+                    left: cellBorder, right: cellBorder,
+                },
+                verticalAlign: VerticalAlign.TOP,
+                children,
             });
-            
-            if (hasClinical) {
-                table.querySelectorAll('.clinical-th-cell').forEach(th => {
-                    th.setAttribute('style', `background-color: #008080 !important; color: white !important; font-weight: bold; text-align: left; width: ${colWidthPercent};`);
+        }
+
+        // Helper: build a regular content cell
+        function contentCell(children, color = BLUE) {
+            return new TableCell({
+                width: { size: colWidth, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: WHITE },
+                borders: {
+                    top: cellBorder, bottom: cellBorder,
+                    left: cellBorder, right: cellBorder,
+                },
+                verticalAlign: VerticalAlign.TOP,
+                children,
+            });
+        }
+
+        // Helper: bold colored heading paragraph (sub-section label)
+        function sectionHeading(text, color = BLUE, spaceBefore = 0) {
+            return new Paragraph({
+                spacing: { before: spaceBefore, after: 40 },
+                border: { bottom: { style: BorderStyle.DASHED, size: 4, color: "CCCCCC" } },
+                children: [new TextRun({ text, bold: true, color, size: 22 })],
+            });
+        }
+
+        // Helper: plain body paragraph
+        function bodyPara(text, opts = {}) {
+            return new Paragraph({
+                spacing: { before: 20, after: 20 },
+                children: [new TextRun({
+                    text,
+                    size: opts.size || 20,
+                    bold: opts.bold || false,
+                    color: opts.color || "333333",
+                })],
+            });
+        }
+
+        // Helper: objective line with tag badge
+        function objectivePara(tag, text) {
+            return new Paragraph({
+                spacing: { before: 30, after: 30 },
+                children: [
+                    new TextRun({ text: `${tag}  `, bold: true, color: BLUE, size: 20 }),
+                    new TextRun({ text, size: 20, color: "333333" }),
+                ],
+            });
+        }
+
+        // Helper: item line with optional WO mapping parenthetical
+        function itemPara(text, mappedTags = []) {
+            const runs = [new TextRun({ text: `• ${text}`, size: 20, color: "333333" })];
+            if (mappedTags.length > 0) {
+                runs.push(new TextRun({ text: `  (${mappedTags.join(", ")})`, size: 18, color: "888888" }));
+            }
+            return new Paragraph({ spacing: { before: 20, after: 20 }, children: runs });
+        }
+
+        // Helper: column header cell (blue or teal)
+        function headerCell(text, bgColor = BLUE) {
+            return new TableCell({
+                width: { size: colWidth, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: bgColor },
+                borders: {
+                    top: cellBorder, bottom: cellBorder,
+                    left: cellBorder, right: cellBorder,
+                },
+                verticalAlign: VerticalAlign.CENTER,
+                children: [new Paragraph({
+                    children: [new TextRun({ text, bold: true, color: WHITE, size: 22 })],
+                })],
+            });
+        }
+
+        // Build all week tables
+        const weekTables = [];
+
+        for (let wi = 0; wi < syllabusData.weeksRevealed; wi++) {
+            const week = syllabusData.weeks[wi];
+            const wNum = wi + 1;
+            const displayTitle = week.subtitle ? `Week ${wNum}: ${week.subtitle}` : `Week ${wNum}`;
+
+            // --- Row 1: Week heading ---
+            const weekHeadingRow = new TableRow({
+                children: [fullWidthCell([
+                    new Paragraph({
+                        children: [new TextRun({ text: displayTitle, bold: true, size: 26, color: "495057" })],
+                    })
+                ], GRAY_BG)],
+            });
+
+            // --- Row 2: Objectives ---
+            const objParas = [sectionHeading(`Week ${wNum} Objectives`, BLUE)];
+            if (week.objectives.length === 0) {
+                objParas.push(bodyPara(""));
+            } else {
+                week.objectives.forEach((obj, oi) => {
+                    objParas.push(objectivePara(objTag(wi, oi), obj));
                 });
             }
+            const objectivesRow = new TableRow({
+                children: [fullWidthCell(objParas, WHITE)],
+            });
+
+            // --- Row 3: Column headers ---
+            const colHeaderRow = new TableRow({
+                children: [
+                    headerCell("Learning Activities", BLUE),
+                    headerCell("Assignments", BLUE),
+                    ...(hasClinical ? [headerCell("Clinical/Lab Activities", TEAL)] : []),
+                ],
+            });
+
+            // --- Row 4: Content ---
+
+            // Learning Activities cell
+            const actParas = [sectionHeading("Learning Module(s)", BLUE)];
+            if (week.modules.length === 0) {
+                actParas.push(bodyPara(""));
+            } else {
+                const mMappings = week["modulesList_mappings"] || {};
+                week.modules.forEach((m, mi) => {
+                    actParas.push(itemPara(m, mMappings[mi] || []));
+                });
+            }
+
+            actParas.push(sectionHeading("Readings", BLUE, 160));
+            if (week.readings.length === 0) {
+                actParas.push(bodyPara(""));
+            } else {
+                const rMappings = week["readingsList_mappings"] || {};
+                week.readings.forEach((r, ri) => {
+                    actParas.push(itemPara(r, rMappings[ri] || []));
+                });
+            }
+
+            // Custom categories
+            if (week.customCategories && week.customCategories.length > 0) {
+                week.customCategories.forEach((cat, ci) => {
+                    actParas.push(sectionHeading(cat.name, BLUE, 160));
+                    const catMappings = week[`customCat_${ci}_mappings`] || {};
+                    if (cat.items.length === 0) {
+                        actParas.push(bodyPara(""));
+                    } else {
+                        cat.items.forEach((item, ii) => {
+                            actParas.push(itemPara(item, catMappings[ii] || []));
+                        });
+                    }
+                });
+            }
+
+            // Assignments cell
+            const assignParas = [];
+            const aMappings = week["assignmentsList_mappings"] || {};
+            if (week.assignments.length === 0) {
+                assignParas.push(bodyPara(""));
+            } else {
+                week.assignments.forEach((a, ai) => {
+                    assignParas.push(itemPara(a, aMappings[ai] || []));
+                });
+            }
+
+            // Clinical cell
+            const clinicalParas = [];
+            if (hasClinical) {
+                const cMappings = week["clinicalActivitiesList_mappings"] || {};
+                if (week.clinicalActivities.length === 0) {
+                    clinicalParas.push(bodyPara(""));
+                } else {
+                    week.clinicalActivities.forEach((c, ci) => {
+                        clinicalParas.push(itemPara(c, cMappings[ci] || []));
+                    });
+                }
+            }
+
+            const contentRow = new TableRow({
+                children: [
+                    contentCell(actParas),
+                    contentCell(assignParas),
+                    ...(hasClinical ? [contentCell(clinicalParas, TEAL)] : []),
+                ],
+            });
+
+            const table = new Table({
+                width: { size: totalWidth, type: WidthType.DXA },
+                rows: [weekHeadingRow, objectivesRow, colHeaderRow, contentRow],
+            });
+
+            weekTables.push(table);
+            // Spacer paragraph between weeks
+            weekTables.push(new Paragraph({ spacing: { before: 200, after: 0 }, children: [] }));
+        }
+
+        // Course title paragraph
+        const titlePara = new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 0, after: 200 },
+            border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: BLUE } },
+            children: [new TextRun({ text: syllabusData.courseName || "Nursing Course Syllabus", bold: true, color: BLUE, size: 36 })],
         });
 
-        const completeDocHtml = `
-            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-            <head>
-                <meta charset="utf-8">
-                <title>Syllabus Export</title>
-                ${docHtmlStyles}
-            </head>
-            <body>
-                ${clone.innerHTML}
-            </body>
-            </html>
-        `;
-
-        const blob = new Blob(['\ufeff' + completeDocHtml], {
-            type: 'application/msword'
+        const doc = new Document({
+            sections: [{
+                properties: {
+                    page: {
+                        margin: {
+                            top: convertInchesToTwip(1),
+                            bottom: convertInchesToTwip(1),
+                            left: convertInchesToTwip(0.75),
+                            right: convertInchesToTwip(0.75),
+                        }
+                    }
+                },
+                children: [titlePara, ...weekTables],
+            }],
         });
 
+        const blob = await Packer.toBlob(doc);
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        const cleanTitle = syllabusData.courseName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        
+        const cleanTitle = (syllabusData.courseName || 'course').replace(/[^a-z0-9]/gi, '_').toLowerCase();
         link.href = url;
-        link.download = `syllabus_${cleanTitle || 'course'}.doc`;
+        link.download = `syllabus_${cleanTitle}.docx`;
         document.body.appendChild(link);
         link.click();
-        
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+
     }
 
     function showMapPopover(weekIndex, containerType, itemIndex, triggerBtn) {
