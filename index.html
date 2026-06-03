@@ -327,6 +327,56 @@
     const coreClinicalActivities = ['Clinical Essentials', 'Shadow Health', 'Sim Pre-Quiz', 'Sim Post-Quiz', 'Clinical Care Maps', 'Participation'];
     const coreAssignments = ['Discussion Board', 'Written Assignment', 'Quiz', 'Exam', 'HESI Case Studies', 'HESI Specialty Exam', 'HESI Compass Course Case Studies', 'HESI Compass Course Exam', 'HESI Exit Exam'];
 
+    // --- Item helpers ---
+    // Normalize a raw item (string or object) into {baseName, descriptor, isStandard}
+    function normalizeItem(raw, coreList) {
+        if (typeof raw === 'object' && raw !== null && 'baseName' in raw) return raw;
+        const str = typeof raw === 'string' ? raw : String(raw);
+        const isStd = coreList.includes(str);
+        return { baseName: isStd ? str : str, descriptor: '', isStandard: isStd };
+    }
+
+    // Get display text for an item object
+    function itemDisplayText(item) {
+        if (typeof item === 'string') return item;
+        if (item.isStandard) {
+            return item.descriptor ? `${item.baseName}: ${item.descriptor}` : item.baseName;
+        }
+        return item.descriptor ? `${item.baseName}: ${item.descriptor}` : item.baseName;
+    }
+
+    // Create a fresh standard item object
+    function makeStandardItem(baseName) {
+        return { baseName, descriptor: '', isStandard: true };
+    }
+
+    // Create a fresh custom item object
+    function makeCustomItem(text) {
+        return { baseName: text, descriptor: '', isStandard: false };
+    }
+
+    // Sort an items array: standard items in canonical order first, then custom items in insertion order
+    function sortedItems(items, coreList) {
+        const standards = [];
+        const customs = [];
+        items.forEach(item => {
+            const norm = (typeof item === 'object' && item !== null) ? item : { baseName: item, isStandard: coreList.includes(item) };
+            if (norm.isStandard && coreList.includes(norm.baseName)) {
+                standards.push(norm);
+            } else {
+                customs.push(norm);
+            }
+        });
+        standards.sort((a, b) => coreList.indexOf(a.baseName) - coreList.indexOf(b.baseName));
+        return [...standards, ...customs];
+    }
+
+    // Normalize a whole week's assignment/clinical arrays (migrate plain strings → objects)
+    function normalizeWeekItems(week) {
+        week.assignments = week.assignments.map(a => normalizeItem(a, coreAssignments));
+        week.clinicalActivities = week.clinicalActivities.map(c => normalizeItem(c, coreClinicalActivities));
+    }
+
     // Blueprint for creating a fresh week block object (subtitle only — week number is auto)
     function createNewWeekObject() {
         return {
@@ -335,8 +385,8 @@
             modules: [],
             readings: [],
             customCategories: [],
-            clinicalActivities: [...coreClinicalActivities],
-            assignments: [...coreAssignments]
+            clinicalActivities: coreClinicalActivities.map(makeStandardItem),
+            assignments: coreAssignments.map(makeStandardItem)
         };
     }
 
@@ -362,9 +412,11 @@
                 }
                 if(!w.subtitle) w.subtitle = "";
                 if(!w.objectives) w.objectives = [];
-                if(!w.assignments) w.assignments = [...coreAssignments];
+                if(!w.assignments) w.assignments = coreAssignments.map(makeStandardItem);
+                else w.assignments = w.assignments.map(a => normalizeItem(a, coreAssignments));
                 if(!w.customCategories) w.customCategories = [];
-                if(!w.clinicalActivities || w.clinicalActivities.length === 0) w.clinicalActivities = [...coreClinicalActivities];
+                if(!w.clinicalActivities || w.clinicalActivities.length === 0) w.clinicalActivities = coreClinicalActivities.map(makeStandardItem);
+                else w.clinicalActivities = w.clinicalActivities.map(c => normalizeItem(c, coreClinicalActivities));
             });
 
             // Ensure exactly 8 weeks exist in data
@@ -512,12 +564,12 @@
             renderDynamicList(weekIndex, 'objectivesList', week.objectives);
             renderDynamicList(weekIndex, 'modulesList', week.modules);
             renderDynamicList(weekIndex, 'readingsList', week.readings);
-            renderDynamicList(weekIndex, 'assignmentsList', week.assignments);
+            renderDynamicList(weekIndex, 'assignmentsList', sortedItems(week.assignments, coreAssignments));
             renderCustomCategories(weekIndex);
             renderRestorePanel(weekIndex);
 
             if(hasClinical) {
-                renderDynamicList(weekIndex, 'clinicalActivitiesList', week.clinicalActivities);
+                renderDynamicList(weekIndex, 'clinicalActivitiesList', sortedItems(week.clinicalActivities, coreClinicalActivities));
                 renderRestoreClinicalPanel(weekIndex);
             }
         }
@@ -540,7 +592,8 @@
         const currentAssignments = syllabusData.weeks[weekIndex].assignments;
         
         container.innerHTML = '';
-        let missingCoreItems = coreAssignments.filter(item => !currentAssignments.includes(item));
+        const currentBaseNames = currentAssignments.map(a => (typeof a === 'object' ? a.baseName : a));
+        let missingCoreItems = coreAssignments.filter(item => !currentBaseNames.includes(item));
 
         if (missingCoreItems.length > 0) {
             panel.style.display = 'block';
@@ -551,7 +604,7 @@
                 btn.style.fontSize = '11px';
                 btn.innerText = `+ ${itemName}`;
                 btn.onclick = function() {
-                    syllabusData.weeks[weekIndex].assignments.push(itemName);
+                    syllabusData.weeks[weekIndex].assignments.push(makeStandardItem(itemName));
                     saveToStorage();
                     renderAll();
                 };
@@ -569,7 +622,8 @@
         const currentClinical = syllabusData.weeks[weekIndex].clinicalActivities;
 
         container.innerHTML = '';
-        let missingCoreItems = coreClinicalActivities.filter(item => !currentClinical.includes(item));
+        const currentBaseNames = currentClinical.map(c => (typeof c === 'object' ? c.baseName : c));
+        let missingCoreItems = coreClinicalActivities.filter(item => !currentBaseNames.includes(item));
 
         if (missingCoreItems.length > 0) {
             panel.style.display = 'block';
@@ -580,7 +634,7 @@
                 btn.style.fontSize = '11px';
                 btn.innerText = `+ ${itemName}`;
                 btn.onclick = function() {
-                    syllabusData.weeks[weekIndex].clinicalActivities.push(itemName);
+                    syllabusData.weeks[weekIndex].clinicalActivities.push(makeStandardItem(itemName));
                     saveToStorage();
                     renderAll();
                 };
@@ -849,7 +903,10 @@
                     </div>
                 `;
             } else {
-                // Show mapped WO badges + Map button between Edit/Delete
+                // item may be object or plain string
+                const itemObj = (typeof item === 'object' && item !== null) ? item : { baseName: item, descriptor: '', isStandard: false };
+                const displayText = itemDisplayText(itemObj);
+
                 const week = syllabusData.weeks[weekIndex];
                 const mappingsKey = `${containerType}_mappings`;
                 if (!week[mappingsKey]) week[mappingsKey] = {};
@@ -860,7 +917,7 @@
 
                 row.innerHTML = `
                     <div style="flex-grow:1;">
-                        <span class="item-text">${escapeHtml(item)}</span>${parenthetical}
+                        <span class="item-text">${escapeHtml(displayText)}</span>${parenthetical}
                     </div>
                     <div data-html-clean="remove" style="display:flex; gap:4px; align-items:center; flex-shrink:0;">
                         <button class="btn-secondary" style="padding:2px 6px; font-size:12px;" onclick="editListItem(${weekIndex}, '${containerType}', ${index})">Edit</button>
@@ -882,8 +939,8 @@
         if(containerType === 'objectivesList') week.objectives.push(value);
         if(containerType === 'modulesList') week.modules.push(value);
         if(containerType === 'readingsList') week.readings.push(value);
-        if(containerType === 'assignmentsList') week.assignments.push(value);
-        if(containerType === 'clinicalActivitiesList') week.clinicalActivities.push(value);
+        if(containerType === 'assignmentsList') week.assignments.push(makeCustomItem(value));
+        if(containerType === 'clinicalActivitiesList') week.clinicalActivities.push(makeCustomItem(value));
 
         input.value = '';
         saveToStorage();
@@ -893,13 +950,48 @@
     function editListItem(weekIndex, containerType, index) {
         const row = document.getElementById(`${containerType}-${weekIndex}-row-${index}`);
         const week = syllabusData.weeks[weekIndex];
+
+        // For assignments and clinical, work with item objects
+        if (containerType === 'assignmentsList' || containerType === 'clinicalActivitiesList') {
+            const list = containerType === 'assignmentsList' ? week.assignments : week.clinicalActivities;
+            const coreList = containerType === 'assignmentsList' ? coreAssignments : coreClinicalActivities;
+            // Find by sorted position — we need to find the actual item in the unsorted array
+            const sortedList = sortedItems(list, coreList);
+            const itemObj = sortedList[index];
+            // Find the real index in the underlying array by object reference
+            const realIdx = list.indexOf(itemObj);
+
+            if (itemObj.isStandard) {
+                row.innerHTML = `
+                    <div style="display:flex; align-items:center; flex-grow:1; gap:6px;">
+                        <span style="font-weight:bold; white-space:nowrap; color:#333;">${escapeHtml(itemObj.baseName)}</span>
+                        <input type="text" id="${containerType}-${weekIndex}-edit-input-${index}"
+                            value="${escapeHtml(itemObj.descriptor)}"
+                            placeholder="optional detail..."
+                            style="flex-grow:1;">
+                    </div>
+                    <div style="display:flex; gap:4px; flex-shrink:0;">
+                        <button class="btn-success" style="padding:2px 6px; font-size:12px;" onclick="saveListItem(${weekIndex}, '${containerType}', ${index})">Save</button>
+                        <button class="btn-secondary" style="padding:2px 6px; font-size:12px;" onclick="renderAll()">Cancel</button>
+                    </div>
+                `;
+            } else {
+                row.innerHTML = `
+                    <input type="text" id="${containerType}-${weekIndex}-edit-input-${index}" value="${escapeHtml(itemObj.baseName)}" style="margin-right:8px; flex-grow:1;">
+                    <div style="display:flex; gap:4px; flex-shrink:0;">
+                        <button class="btn-success" style="padding:2px 6px; font-size:12px;" onclick="saveListItem(${weekIndex}, '${containerType}', ${index})">Save</button>
+                        <button class="btn-secondary" style="padding:2px 6px; font-size:12px;" onclick="renderAll()">Cancel</button>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        // Plain string lists (objectives, modules, readings)
         let currentVal = "";
-        
         if(containerType === 'objectivesList') currentVal = week.objectives[index];
         if(containerType === 'modulesList') currentVal = week.modules[index];
         if(containerType === 'readingsList') currentVal = week.readings[index];
-        if(containerType === 'assignmentsList') currentVal = week.assignments[index];
-        if(containerType === 'clinicalActivitiesList') currentVal = week.clinicalActivities[index];
 
         row.innerHTML = `
             <input type="text" id="${containerType}-${weekIndex}-edit-input-${index}" value="${escapeHtml(currentVal)}" style="margin-right:8px;">
@@ -912,14 +1004,32 @@
 
     function saveListItem(weekIndex, containerType, index) {
         const newVal = document.getElementById(`${containerType}-${weekIndex}-edit-input-${index}`).value.trim();
-        if(!newVal) return;
 
         const week = syllabusData.weeks[weekIndex];
+
+        if (containerType === 'assignmentsList' || containerType === 'clinicalActivitiesList') {
+            const list = containerType === 'assignmentsList' ? week.assignments : week.clinicalActivities;
+            const coreList = containerType === 'assignmentsList' ? coreAssignments : coreClinicalActivities;
+            const sortedList = sortedItems(list, coreList);
+            const itemObj = sortedList[index];
+            // Find and update the real item in the array
+            const realIdx = list.indexOf(itemObj);
+            if (realIdx === -1) { renderAll(); return; }
+            if (itemObj.isStandard) {
+                list[realIdx] = { baseName: itemObj.baseName, descriptor: newVal, isStandard: true };
+            } else {
+                if (!newVal) return;
+                list[realIdx] = { baseName: newVal, descriptor: '', isStandard: false };
+            }
+            saveToStorage();
+            renderAll();
+            return;
+        }
+
+        if(!newVal) return;
         if(containerType === 'objectivesList') week.objectives[index] = newVal;
         if(containerType === 'modulesList') week.modules[index] = newVal;
         if(containerType === 'readingsList') week.readings[index] = newVal;
-        if(containerType === 'assignmentsList') week.assignments[index] = newVal;
-        if(containerType === 'clinicalActivitiesList') week.clinicalActivities[index] = newVal;
 
         saveToStorage();
         renderAll();
@@ -927,12 +1037,36 @@
 
     function deleteListItem(weekIndex, containerType, index) {
         const week = syllabusData.weeks[weekIndex];
+
+        if (containerType === 'assignmentsList' || containerType === 'clinicalActivitiesList') {
+            const list = containerType === 'assignmentsList' ? week.assignments : week.clinicalActivities;
+            const coreList = containerType === 'assignmentsList' ? coreAssignments : coreClinicalActivities;
+            const sortedList = sortedItems(list, coreList);
+            const itemObj = sortedList[index];
+            const realIdx = list.indexOf(itemObj);
+            if (realIdx === -1) { renderAll(); return; }
+            list.splice(realIdx, 1);
+
+            // Compact mappings (shift indices for items after deleted one in the sorted view)
+            const mappingsKey = `${containerType}_mappings`;
+            if (week[mappingsKey]) {
+                const newStore = {};
+                Object.keys(week[mappingsKey]).forEach(k => {
+                    const n = parseInt(k);
+                    if (n < index) newStore[n] = week[mappingsKey][k];
+                    else if (n > index) newStore[n - 1] = week[mappingsKey][k];
+                });
+                week[mappingsKey] = newStore;
+            }
+            saveToStorage();
+            renderAll();
+            return;
+        }
+
         if(containerType === 'objectivesList') {
             week.objectives.splice(index, 1);
         } else if(containerType === 'modulesList') week.modules.splice(index, 1);
         else if(containerType === 'readingsList') week.readings.splice(index, 1);
-        else if(containerType === 'assignmentsList') week.assignments.splice(index, 1);
-        else if(containerType === 'clinicalActivitiesList') week.clinicalActivities.splice(index, 1);
 
         // Compact mappings for the affected list (shift indices down for items after deleted one)
         if (containerType !== 'objectivesList') {
@@ -1151,11 +1285,12 @@
             // Assignments cell
             const assignParas = [];
             const aMappings = week["assignmentsList_mappings"] || {};
-            if (week.assignments.length === 0) {
+            const sortedAssignments = sortedItems(week.assignments, coreAssignments);
+            if (sortedAssignments.length === 0) {
                 assignParas.push(bodyPara(""));
             } else {
-                week.assignments.forEach((a, ai) => {
-                    assignParas.push(itemPara(a, aMappings[ai] || []));
+                sortedAssignments.forEach((a, ai) => {
+                    assignParas.push(itemPara(itemDisplayText(a), aMappings[ai] || []));
                 });
             }
 
@@ -1163,11 +1298,12 @@
             const clinicalParas = [];
             if (hasClinical) {
                 const cMappings = week["clinicalActivitiesList_mappings"] || {};
-                if (week.clinicalActivities.length === 0) {
+                const sortedClinical = sortedItems(week.clinicalActivities, coreClinicalActivities);
+                if (sortedClinical.length === 0) {
                     clinicalParas.push(bodyPara(""));
                 } else {
-                    week.clinicalActivities.forEach((c, ci) => {
-                        clinicalParas.push(itemPara(c, cMappings[ci] || []));
+                    sortedClinical.forEach((c, ci) => {
+                        clinicalParas.push(itemPara(itemDisplayText(c), cMappings[ci] || []));
                     });
                 }
             }
