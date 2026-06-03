@@ -448,7 +448,7 @@
                 </tr>
                 <tr>
                     <td style="${colWidthStyle}">
-                        <div class="sub-section-title"><span>Interactive Lessons</span></div>
+                        <div class="sub-section-title"><span>Interactive Lessons</span><button class="btn-word" data-html-clean="remove" style="padding: 3px 9px; font-size: 11px; font-weight: normal;" onclick="generateLessonTemplate(${weekIndex})">📋 Generate Lesson Template</button></div>
                         <div id="modulesList-${weekIndex}" class="list-container"></div>
                         <div class="interactive-field" data-html-clean="remove">
                             <input type="text" id="newModuleInput-${weekIndex}" placeholder="Add a Learning Module...">
@@ -1294,6 +1294,134 @@
 
     function escapeHtml(str) {
         return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    async function generateLessonTemplate(weekIndex) {
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
+                BorderStyle, WidthType, LevelFormat, convertInchesToTwip } = docx;
+
+        const week = syllabusData.weeks[weekIndex];
+        const wNum = weekIndex + 1;
+        const courseName = syllabusData.courseName || "Nursing Course";
+        const weekLabel = week.subtitle ? `Week ${wNum}: ${week.subtitle}` : `Week ${wNum}`;
+
+        const BLUE = "005A9C";
+        const WHITE = "FFFFFF";
+        const GRAY_BG = "dee2e6";
+
+        // Build a lookup: tag -> full objective text
+        const objLookup = {};
+        week.objectives.forEach((obj, oi) => {
+            objLookup[objTag(weekIndex, oi)] = obj;
+        });
+
+        const modules = week.modules || [];
+        const mMappings = week["modulesList_mappings"] || {};
+
+        const children = [];
+
+        // Course title
+        children.push(new Paragraph({
+            spacing: { before: 0, after: 200 },
+            border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: BLUE } },
+            children: [new TextRun({ text: courseName, bold: true, color: BLUE, size: 36, font: "Arial" })],
+        }));
+
+        // Week label
+        children.push(new Paragraph({
+            spacing: { before: 240, after: 160 },
+            children: [new TextRun({ text: weekLabel, bold: true, size: 28, color: "495057", font: "Arial" })],
+        }));
+
+        if (modules.length === 0) {
+            children.push(new Paragraph({
+                spacing: { before: 100, after: 100 },
+                children: [new TextRun({ text: "No Interactive Lessons added to this week yet.", italics: true, color: "888888", font: "Arial", size: 22 })],
+            }));
+        } else {
+            modules.forEach((moduleName, mi) => {
+                const mappedTags = mMappings[mi] || [];
+
+                // Articulate Lesson heading
+                children.push(new Paragraph({
+                    spacing: { before: 280, after: 80 },
+                    border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: BLUE } },
+                    children: [new TextRun({ text: `Articulate Lesson ${mi + 1}: ${moduleName}`, bold: true, color: BLUE, size: 24, font: "Arial" })],
+                }));
+
+                // Mapped objectives as bullets
+                if (mappedTags.length === 0) {
+                    children.push(new Paragraph({
+                        numbering: { reference: "lesson-bullets", level: 0 },
+                        spacing: { before: 60, after: 60 },
+                        children: [new TextRun({ text: "(No objectives mapped)", italics: true, color: "888888", font: "Arial", size: 22 })],
+                    }));
+                } else {
+                    mappedTags.forEach(tag => {
+                        const objText = objLookup[tag] || tag;
+                        children.push(new Paragraph({
+                            numbering: { reference: "lesson-bullets", level: 0 },
+                            spacing: { before: 60, after: 60 },
+                            children: [
+                                new TextRun({ text: `[${tag}] `, bold: true, color: BLUE, font: "Arial", size: 22 }),
+                                new TextRun({ text: objText, font: "Arial", size: 22 }),
+                            ],
+                        }));
+                    });
+                }
+
+                // Video Topic line
+                children.push(new Paragraph({
+                    spacing: { before: 120, after: 200 },
+                    children: [
+                        new TextRun({ text: "Video Topic: ", bold: true, font: "Arial", size: 22, color: "333333" }),
+                        new TextRun({ text: "", font: "Arial", size: 22 }),
+                    ],
+                }));
+            });
+        }
+
+        const doc = new Document({
+            numbering: {
+                config: [
+                    {
+                        reference: "lesson-bullets",
+                        levels: [{
+                            level: 0,
+                            format: LevelFormat.BULLET,
+                            text: "\u2022",
+                            alignment: AlignmentType.LEFT,
+                            style: { paragraph: { indent: { left: 720, hanging: 360 } } },
+                        }],
+                    },
+                ],
+            },
+            sections: [{
+                properties: {
+                    page: {
+                        size: { width: 12240, height: 15840 },
+                        margin: {
+                            top: convertInchesToTwip(1),
+                            bottom: convertInchesToTwip(1),
+                            left: convertInchesToTwip(0.75),
+                            right: convertInchesToTwip(0.75),
+                        },
+                    },
+                },
+                children,
+            }],
+        });
+
+        const blob = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const cleanCourse = (syllabusData.courseName || 'course').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        link.href = url;
+        link.download = `lesson_template_week${wNum}_${cleanCourse}.docx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     }
 </script>
 
