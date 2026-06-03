@@ -323,7 +323,8 @@
     };
 
     const TOTAL_WEEKS = 8;
-    const coreAssignments = ['Discussion', 'Quiz', 'Case Studies', 'Sherpath Assignment', 'HESI Exam'];
+    const coreClinicalActivities = ['Clinical Essentials', 'Shadow Health', 'Sim Pre-Quiz', 'Sim Post-Quiz', 'Clinical Care Maps', 'Participation'];
+    const coreAssignments = ['Discussion Board', 'Written Assignment', 'Quiz', 'Exam', 'HESI Case Studies', 'HESI Specialty Exam', 'HESI Compass Course Case Studies', 'HESI Compass Course Exam', 'HESI Exit Exam'];
 
     // Blueprint for creating a fresh week block object (subtitle only — week number is auto)
     function createNewWeekObject() {
@@ -333,7 +334,7 @@
             modules: [],
             readings: [],
             customCategories: [],
-            clinicalActivities: [],
+            clinicalActivities: [...coreClinicalActivities],
             assignments: [...coreAssignments]
         };
     }
@@ -362,7 +363,7 @@
                 if(!w.objectives) w.objectives = [];
                 if(!w.assignments) w.assignments = [...coreAssignments];
                 if(!w.customCategories) w.customCategories = [];
-                if(!w.clinicalActivities) w.clinicalActivities = [];
+                if(!w.clinicalActivities || w.clinicalActivities.length === 0) w.clinicalActivities = [...coreClinicalActivities];
             });
 
             // Ensure exactly 8 weeks exist in data
@@ -489,6 +490,10 @@
                             <input type="text" id="newClinicalInput-${weekIndex}" placeholder="Add a Clinical/Lab Entry...">
                             <button class="btn-primary" style="background-color: var(--clinical-color);" onclick="addItem(${weekIndex}, 'clinicalActivitiesList', 'newClinicalInput-${weekIndex}')">+ Add</button>
                         </div>
+                        <div id="restoreClinicalPanel-${weekIndex}" class="restore-panel" data-html-clean="remove" style="display: none;">
+                            <span style="font-size: 11px; font-weight: bold; color: #856404;">Add Back Standard Item:</span>
+                            <div id="restoreClinicalButtonsContainer-${weekIndex}" class="restore-buttons"></div>
+                        </div>
                     </td>
                     ` : ''}
                 </tr>
@@ -512,6 +517,7 @@
 
             if(hasClinical) {
                 renderDynamicList(weekIndex, 'clinicalActivitiesList', week.clinicalActivities);
+                renderRestoreClinicalPanel(weekIndex);
             }
         }
 
@@ -545,6 +551,35 @@
                 btn.innerText = `+ ${itemName}`;
                 btn.onclick = function() {
                     syllabusData.weeks[weekIndex].assignments.push(itemName);
+                    saveToStorage();
+                    renderAll();
+                };
+                container.appendChild(btn);
+            });
+        } else {
+            panel.style.display = 'none';
+        }
+    }
+
+    function renderRestoreClinicalPanel(weekIndex) {
+        const panel = document.getElementById(`restoreClinicalPanel-${weekIndex}`);
+        const container = document.getElementById(`restoreClinicalButtonsContainer-${weekIndex}`);
+        if (!panel || !container) return;
+        const currentClinical = syllabusData.weeks[weekIndex].clinicalActivities;
+
+        container.innerHTML = '';
+        let missingCoreItems = coreClinicalActivities.filter(item => !currentClinical.includes(item));
+
+        if (missingCoreItems.length > 0) {
+            panel.style.display = 'block';
+            missingCoreItems.forEach(itemName => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-success';
+                btn.style.padding = '2px 8px';
+                btn.style.fontSize = '11px';
+                btn.innerText = `+ ${itemName}`;
+                btn.onclick = function() {
+                    syllabusData.weeks[weekIndex].clinicalActivities.push(itemName);
                     saveToStorage();
                     renderAll();
                 };
