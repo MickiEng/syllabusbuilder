@@ -292,6 +292,8 @@
     
     <div class="toolbar" id="exclude-toolbar">
         <button class="btn-word" onclick="exportToWord()">📄 Export to Microsoft Word</button>
+        <button class="btn-success" onclick="saveCourseJSON()">💾 Save Course</button>
+        <label class="btn-secondary" style="cursor:pointer; padding: 6px 12px; border-radius: 4px; margin: 0; display:inline-block; font-size: 14px; font-weight: normal; line-height: 1.4;">📂 Load Course<input type="file" accept=".json" onchange="loadCourseJSON(event)" style="display:none;"></label>
         <small style="color: #666; margin-left: auto;">*Changes auto-save directly to your browser window session memory.</small>
     </div>
 
@@ -1290,6 +1292,52 @@
         overlay.remove();
         saveToStorage();
         renderAll();
+    }
+
+    function saveCourseJSON() {
+        const today = new Date();
+        const dateStr = today.getFullYear() + '-' +
+            String(today.getMonth() + 1).padStart(2, '0') + '-' +
+            String(today.getDate()).padStart(2, '0');
+        const cleanName = (syllabusData.courseName || 'course').replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+        const filename = `${cleanName}_${dateStr}.json`;
+
+        const blob = new Blob([JSON.stringify(syllabusData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function loadCourseJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const loaded = JSON.parse(e.target.result);
+                if (!loaded.weeks || !Array.isArray(loaded.weeks)) {
+                    alert("This doesn't look like a valid course save file.");
+                    return;
+                }
+                syllabusData = loaded;
+                // Ensure all weeks are present
+                while (syllabusData.weeks.length < TOTAL_WEEKS) syllabusData.weeks.push(createNewWeekObject());
+                syllabusData.weeks = syllabusData.weeks.slice(0, TOTAL_WEEKS);
+                saveToStorage();
+                updateUiWidth();
+                renderAll();
+            } catch(err) {
+                alert("Could not read the file. Make sure it's a valid course save file.");
+            }
+        };
+        reader.readAsText(file);
+        // Reset the input so the same file can be reloaded if needed
+        event.target.value = '';
     }
 
     function escapeHtml(str) {
