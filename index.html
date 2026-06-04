@@ -1311,8 +1311,33 @@
 
         // Week label
         children.push(new Paragraph({
-            spacing: { before: 240, after: 160 },
+            spacing: { before: 240, after: 120 },
             children: [new TextRun({ text: weekLabel, bold: true, size: 28, color: "495057", font: "Arial" })],
+        }));
+
+        // SME Name line
+        children.push(new Paragraph({
+            spacing: { before: 60, after: 60 },
+            children: [
+                new TextRun({ text: "SME Name:", bold: true, font: "Arial", size: 22, color: "333333" }),
+            ],
+        }));
+
+        // Due Date line
+        children.push(new Paragraph({
+            spacing: { before: 60, after: 60 },
+            children: [
+                new TextRun({ text: "Due Date:", bold: true, font: "Arial", size: 22, color: "333333" }),
+            ],
+        }));
+
+        // Design Hub line
+        children.push(new Paragraph({
+            spacing: { before: 60, after: 160 },
+            children: [
+                new TextRun({ text: "Design Hub: ", bold: true, font: "Arial", size: 22, color: "333333" }),
+                new TextRun({ text: "sharepoint.com/video-design-PPT-template", font: "Arial", size: 22, color: "333333" }),
+            ],
         }));
 
         if (modules.length === 0) {
@@ -1356,7 +1381,7 @@
                 children.push(new Paragraph({
                     spacing: { before: 120, after: 200 },
                     children: [
-                        new TextRun({ text: "Video Topic: ", bold: true, font: "Arial", size: 22, color: "333333" }),
+                        new TextRun({ text: "Video Concept: ", bold: true, font: "Arial", size: 22, color: "333333" }),
                         new TextRun({ text: "", font: "Arial", size: 22 }),
                     ],
                 }));
