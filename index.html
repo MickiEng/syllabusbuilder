@@ -160,22 +160,6 @@
 
         .item-text { flex-grow: 1; }
 
-        .restore-panel {
-            background: #fff3cd;
-            border: 1px solid #ffeeba;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 15px;
-            margin-bottom: 5px;
-        }
-        
-        .restore-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 5px;
-        }
-
         .bottom-actions {
             display: flex;
             justify-content: center;
@@ -294,6 +278,7 @@
         <button class="btn-word" onclick="exportToWord()">📄 Export to Microsoft Word</button>
         <button class="btn-success" onclick="saveCourseJSON()">💾 Save Course</button>
         <label class="btn-secondary" style="cursor:pointer; padding: 6px 12px; border-radius: 4px; margin: 0; display:inline-block; font-size: 14px; font-weight: normal; line-height: 1.4;">📂 Load Course<input type="file" accept=".json" onchange="loadCourseJSON(event)" style="display:none;"></label>
+        <button class="btn-danger" onclick="resetAllData()" style="margin-left:auto;">🗑️ Reset All Data</button>
     </div>
 
     <div class="course-header-zone">
@@ -380,6 +365,22 @@
         updateUiWidth();
         renderAll();
     };
+
+    function resetAllData() {
+        if(confirm("Reset everything? This will clear all saved data and restore all standard items. This cannot be undone.")) {
+            localStorage.removeItem('nursingSyllabusData');
+            syllabusData = {
+                courseName: "NUXXX: Enter Course Title",
+                showClinicalColumn: false,
+                weeksRevealed: 1,
+                weeks: []
+            };
+            for (let i = 0; i < TOTAL_WEEKS; i++) syllabusData.weeks.push(createNewWeekObject());
+            saveToStorage();
+            updateUiWidth();
+            renderAll();
+        }
+    }
 
     function saveToStorage() {
         localStorage.setItem('nursingSyllabusData', JSON.stringify(syllabusData));
@@ -478,10 +479,6 @@
                             <button class="btn-primary" onclick="addItem(${weekIndex}, 'assignmentsList', 'newAssignmentInput-${weekIndex}')">+ Add</button>
                         </div>
 
-                        <div id="restorePanel-${weekIndex}" class="restore-panel" data-html-clean="remove" style="display: none;">
-                            <span style="font-size: 11px; font-weight: bold; color: #856404;">Add Back Standard Item:</span>
-                            <div id="restoreButtonsContainer-${weekIndex}" class="restore-buttons"></div>
-                        </div>
                     </td>
 
                     ${hasClinical ? `
@@ -490,10 +487,6 @@
                         <div class="interactive-field" data-html-clean="remove">
                             <input type="text" id="newClinicalInput-${weekIndex}" placeholder="Add a Clinical/Lab Entry...">
                             <button class="btn-primary" style="background-color: var(--clinical-color);" onclick="addItem(${weekIndex}, 'clinicalActivitiesList', 'newClinicalInput-${weekIndex}')">+ Add</button>
-                        </div>
-                        <div id="restoreClinicalPanel-${weekIndex}" class="restore-panel" data-html-clean="remove" style="display: none;">
-                            <span style="font-size: 11px; font-weight: bold; color: #856404;">Add Back Standard Item:</span>
-                            <div id="restoreClinicalButtonsContainer-${weekIndex}" class="restore-buttons"></div>
                         </div>
                     </td>
                     ` : ''}
@@ -514,11 +507,9 @@
             renderDynamicList(weekIndex, 'readingsList', week.readings);
             renderDynamicList(weekIndex, 'assignmentsList', week.assignments);
             renderCustomCategories(weekIndex);
-            renderRestorePanel(weekIndex);
 
             if(hasClinical) {
                 renderDynamicList(weekIndex, 'clinicalActivitiesList', week.clinicalActivities);
-                renderRestoreClinicalPanel(weekIndex);
             }
         }
 
@@ -531,63 +522,6 @@
             } else {
                 addBtn.style.display = 'none';
             }
-        }
-    }
-
-    function renderRestorePanel(weekIndex) {
-        const panel = document.getElementById(`restorePanel-${weekIndex}`);
-        const container = document.getElementById(`restoreButtonsContainer-${weekIndex}`);
-        const currentAssignments = syllabusData.weeks[weekIndex].assignments;
-        
-        container.innerHTML = '';
-        let missingCoreItems = coreAssignments.filter(item => !currentAssignments.includes(item));
-
-        if (missingCoreItems.length > 0) {
-            panel.style.display = 'block';
-            missingCoreItems.forEach(itemName => {
-                const btn = document.createElement('button');
-                btn.className = 'btn-success';
-                btn.style.padding = '2px 8px';
-                btn.style.fontSize = '11px';
-                btn.innerText = `+ ${itemName}`;
-                btn.onclick = function() {
-                    syllabusData.weeks[weekIndex].assignments.push(itemName);
-                    saveToStorage();
-                    renderAll();
-                };
-                container.appendChild(btn);
-            });
-        } else {
-            panel.style.display = 'none';
-        }
-    }
-
-    function renderRestoreClinicalPanel(weekIndex) {
-        const panel = document.getElementById(`restoreClinicalPanel-${weekIndex}`);
-        const container = document.getElementById(`restoreClinicalButtonsContainer-${weekIndex}`);
-        if (!panel || !container) return;
-        const currentClinical = syllabusData.weeks[weekIndex].clinicalActivities;
-
-        container.innerHTML = '';
-        let missingCoreItems = coreClinicalActivities.filter(item => !currentClinical.includes(item));
-
-        if (missingCoreItems.length > 0) {
-            panel.style.display = 'block';
-            missingCoreItems.forEach(itemName => {
-                const btn = document.createElement('button');
-                btn.className = 'btn-success';
-                btn.style.padding = '2px 8px';
-                btn.style.fontSize = '11px';
-                btn.innerText = `+ ${itemName}`;
-                btn.onclick = function() {
-                    syllabusData.weeks[weekIndex].clinicalActivities.push(itemName);
-                    saveToStorage();
-                    renderAll();
-                };
-                container.appendChild(btn);
-            });
-        } else {
-            panel.style.display = 'none';
         }
     }
 
@@ -1340,7 +1274,8 @@
     }
 
     function escapeHtml(str) {
-        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
     async function generateLessonTemplate(weekIndex) {
